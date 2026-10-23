@@ -1,0 +1,142 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      # ── Android APK ──
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Download nodejs-mobile libnode.so
+        run: |
+          curl -sL -o nodejs-mobile.zip "https://github.com/nodejs-mobile/nodejs-mobile/releases/download/v18.20.4/nodejs-mobile-v18.20.4-android.zip"
+          unzip -q nodejs-mobile.zip -d nodejs-mobile-tmp
+          mkdir -p android/app/libs/jniLibs/arm64-v8a
+          mkdir -p android/app/libs/jniLibs/armeabi-v7a
+          mkdir -p android/app/libs/jniLibs/x86_64
+          cp nodejs-mobile-tmp/bin/arm64-v8a/libnode.so android/app/libs/jniLibs/arm64-v8a/
+          cp nodejs-mobile-tmp/bin/armeabi-v7a/libnode.so android/app/libs/jniLibs/armeabi-v7a/
+          cp nodejs-mobile-tmp/bin/x86_64/libnode.so android/app/libs/jniLibs/x86_64/
+          rm -rf nodejs-mobile.zip nodejs-mobile-tmp
+
+      - name: Copy project to Android assets
+        run: |
+          if command -v pwsh &> /dev/null; then
+            pwsh android/copy-nodejs-project.ps1
+          else
+            rm -rf android/app/src/main/assets/nodejs-project
+            mkdir -p android/app/src/main/assets/nodejs-project
+            cp -r server.js startup-port.js package.json package-lock.json android/app/src/main/assets/nodejs-project/
+            cp -r android/main.js android/app/src/main/assets/nodejs-project/
+            cp -r lang games bots public android/app/src/main/assets/nodejs-project/
+            cp -r node_modules android/app/src/main/assets/nodejs-project/
+          fi
+
+      - name: Build APK
+        run: cd android && ./gradlew assembleDebug
+
+      # ── Desktop standalone exe (Windows) ──
+      - name: Build Desktop executable (pkg)
+        run: |
+          npx @yao-pkg/pkg desktop-entry.js \
+            --out-path dist \
+            --targets node24-win-x64 \
+            --assets "public/**/*" \
+            --assets "games/**/*" \
+            --assets "bots/**/*" \
+            --assets "lang/**/*" \
+            --assets "startup-port.js" \
+            --assets "node_modules/**/*" \
+            --compress Brotli
+          mv dist/desktop-entry.exe dist/GameNest-Windows.exe
+
+      # ── Portable source package (Linux/macOS + Node.js users) ──
+      - name: Create portable ZIP
+        run: |
+          mkdir -p dist/portable
+          cp server.js desktop-entry.js startup-port.js package.json package-lock.json dist/portable/
+          cp -r games bots public lang dist/portable/
+          cd dist/portable
+          zip -r ../GameNest-Portable.zip .
+          rm -rf ../portable
+
+      - name: Extract version from tag
+        id: version
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      # Release body = docs/releases/<tag>.md with the download table inserted after its title.
+      # Notes that already contain the table are used as-is; without a notes file, the table stands alone.
+      - name: Build release notes
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          cat > dist/download.md <<'EOF'
+          ### 下载 / Download
+
+          | 文件 / Asset | 平台 / Platform | 说明 / Description |
+          |---|---|---|
+          | **GameNest-Windows.exe** | Windows 7+ | 双击即用，无需 Node.js，自动打开浏览器。<br>Standalone, no Node.js needed; double-click and the browser opens. |
+          | **GameNest-Portable.zip** | 任意系统 / Any OS | 源码 + 启动脚本，需 Node.js 18+：`npm install && node desktop-entry.js`。<br>Source + launcher scripts; needs Node.js 18+. |
+          | **app-arm64-v8a-debug.apk** | Android 8+（64 位 / 64-bit） | 2016 年后的手机基本都选这个，**不确定就选它**。<br>For nearly every phone since ~2016. **Pick this if unsure.** |
+          | **app-armeabi-v7a-debug.apk** | Android 8+（32 位 / 32-bit） | 仅限老旧 32 位设备。<br>Older 32-bit devices only. |
+          | **app-universal-debug.apk** | Android 8+（通用 / any） | 两种架构都包含，体积更大，哪台都能装。<br>Both architectures; larger, but works everywhere. |
+
+          启动后打开 `http://localhost:3000`，或把 `http://<本机IP>:3000` 分享给同一 WiFi 下的设备。<br>
+          Open `http://localhost:3000`, or share `http://<host-ip>:3000` with devices on the same WiFi.
+
+          ---
+          EOF
+          notes="docs/releases/$TAG.md"
+          if [ ! -f "$notes" ]; then
+            { echo "## GameNest $TAG"; echo; cat dist/download.md; } > dist/release-notes.md
+          elif grep -q 'GameNest-Windows.exe' "$notes"; then
+            cp "$notes" dist/release-notes.md
+          else
+            { head -n 1 "$notes"; echo; cat dist/download.md; tail -n +2 "$notes"; } > dist/release-notes.md
+          fi
+          sed -i 's/\r$//' dist/release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: GameNest ${{ steps.version.outputs.tag }}
+          body_path: dist/release-notes.md
+          files: |
+            android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+            android/app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk
+            android/app/build/outputs/apk/debug/app-universal-debug.apk
+            dist/GameNest-Windows.exe
+            dist/GameNest-Portable.zip

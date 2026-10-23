@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>GameNest — stůl</title>
+<link rel="stylesheet" href="/style.css">
+<!-- Fonts are bundled in assets/fonts so the app works offline. -->
+<style>
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.34); display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .overlay-card { background: var(--surface); border-radius: var(--radius); padding: 32px 28px; text-align: center; max-width: 320px; width: 90%; }
+  .overlay-card .result { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+  .overlay-card .sub { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+  .seat-swap-backdrop { position: fixed; inset: 0; background: rgba(18, 16, 13, 0.34); display: none; align-items: center; justify-content: center; z-index: 55; padding: 18px; }
+  .seat-swap-card { width: min(460px, 100%); background: rgba(255,255,255,0.96); border: 1px solid rgba(0,0,0,0.06); border-radius: 24px; padding: 22px; box-shadow: 0 20px 50px rgba(24, 21, 17, 0.16); display: grid; gap: 14px; }
+  .seat-swap-head { display: grid; gap: 6px; }
+  .seat-swap-head strong { font-size: 20px; }
+  .seat-swap-head span { color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+  .seat-swap-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .seat-swap-option { border: 1px solid rgba(0,0,0,0.08); background: #fff; border-radius: 18px; padding: 12px; display: grid; gap: 8px; text-align: left; cursor: pointer; }
+  .seat-swap-option.current { border-color: rgba(200,164,92,0.45); background: #faf6ef; }
+  .seat-swap-option:disabled { opacity: 0.45; cursor: default; }
+  .seat-swap-slot { font-size: 12px; color: var(--text-muted); }
+  .seat-swap-player { font-size: 15px; font-weight: 700; }
+  .seat-swap-tags { font-size: 12px; color: #6a6257; }
+  .seat-swap-close { justify-self: end; }
+</style>
+</head>
+<body>
+  <div id="notifyBar" style="position:fixed;top:0;left:0;right:0;background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:14px 20px;text-align:center;font-size:15px;font-weight:600;z-index:60;transform:translateY(-100%);transition:transform .3s ease;box-shadow:0 2px 12px rgba(0,0,0,.08);"></div>
+
+  <main class="game-page-shell">
+    <header class="game-topbar">
+      <div class="game-topbar-main">
+        <button class="back-btn" data-i18n="back_to_lobby" onclick="window.doLeaveRoom && window.doLeaveRoom()">← Zpět do lobby</button>
+        <div class="game-title-stack">
+          <strong id="activeGameName">Stůl</strong>
+          <span id="activeGameSubtitle">Čekáme na hráče…</span>
+        </div>
+      </div>
+      <div class="room-id-badge" id="roomBadge">----</div>
+    </header>
+
+    <section class="room-stage">
+      <div id="waitingRoom" class="waiting-room refresh" style="display:none">
+        <div class="waiting-layout">
+          <section class="surface-panel waiting-main-panel">
+            <div class="waiting-headline">
+              <div class="waiting-headline-copy">
+                <p class="eyebrow">NASTAVENÍ STOLU</p>
+                <h2 id="waitingGameName">Stůl</h2>
+                <p id="waitingGameSubtitle">Hostitel rozdá místa, pak se může začít.</p>
+              </div>
+              <div class="waiting-meta-row" id="waitingMeta"></div>
+            </div>
+
+            <div class="waiting-profile" id="profileEdit">
+              <span id="avatarDisplay" title="Profil" onclick="window.openAvatarDrawer&&window.openAvatarDrawer()" style="font-size:32px;width:54px;height:54px;display:flex;align-items:center;justify-content:center;background:var(--bg);border-radius:50%;border:2px solid var(--border);transition:border-color .2s;cursor:pointer;position:relative;">
+                <span id="avatarEmoji">🙂</span>
+                <span style="position:absolute;bottom:-2px;right:-2px;font-size:11px;background:var(--accent);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);">✎</span>
+              </span>
+              <input id="nameInput" style="background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:12px 14px;font-size:14px;font-weight:600;max-width:220px;transition:border-color .2s,box-shadow .2s;outline:none;" maxlength="12" placeholder="Tvoje přezdívka" data-i18n-placeholder="name_placeholder" onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(200,164,92,0.25)'" onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+              <span class="xp-chip" id="xpChip" style="display:none"></span>
+              <button class="btn btn-outline btn-sm" id="profileBtn" data-i18n="profile_edit" onclick="window.openAvatarDrawer&&window.openAvatarDrawer()">Upravit profil</button>
+            </div>
+
+            <div id="avatarDrawer" class="avatar-drawer-backdrop" style="display:none" onclick="if(event.target===this)window.closeAvatarDrawer()">
+              <div class="avatar-drawer-sheet">
+                <div class="avatar-drawer-handle"></div>
+                <div class="avatar-drawer-title" data-i18n="profile_title">Tvůj profil</div>
+                <div id="profileCardMount"></div>
+                <button class="btn btn-primary btn-sm pc-done" data-i18n="close" onclick="window.closeAvatarDrawer()">Zavřít</button>
+              </div>
+            </div>
+
+            <div class="waiting-slots" id="waitingSlots"></div>
+            <div id="gameOptions" style="display:none;background:var(--bg);border-radius:14px;padding:12px;"></div>
+            <div class="waiting-actions">
+              <button class="btn btn-outline btn-sm" id="readyBtn" data-i18n="ready">Připraven</button>
+              <button class="btn btn-outline btn-sm" id="addBotBtn" style="display:none" data-i18n="add_bot">Přidat AI</button>
+              <button class="btn btn-outline btn-sm" id="inviteBtn" data-i18n="copy_room_link">Zkopírovat pozvánku</button>
+              <button class="btn btn-accent btn-sm" id="startGameBtn" style="display:none" data-i18n="start_game">Spustit hru</button>
+            </div>
+            <div class="waiting-status" id="waitingStatus">Čekáme, až budou všichni připraveni…</div>
+          </section>
+
+          <aside class="surface-panel waiting-side-panel">
+            <button class="btn btn-outline btn-sm rules-btn" id="tutorialBtn" data-i18n="view_rules" onclick="var g=(window._effectiveGameKey?window._effectiveGameKey():null)||sessionStorage.getItem('game');if(typeof showGameTutorial==='function')showGameTutorial(g);">Pravidla</button>
+            <div class="qr-card" id="qrArea">
+              <img id="qrImage" src="" alt="QR">
+              <div class="qr-room-code" id="qrRoomCode"></div>
+              <div class="qr-hint" data-i18n="scan_join">Naskenuj QR kód nebo pošli odkaz.</div>
+              <button class="btn btn-outline btn-sm qr-copy" id="qrCopyBtn" data-i18n="copy_room_link">Zkopírovat pozvánku</button>
+            </div>
+            <div class="side-stats" id="lobbyStats"></div>
+          </aside>
+        </div>
+      </div>
+
+      <section class="surface-panel game-stage-panel" id="gameStage" style="display:none">
+        <div class="game-stage-header">
+          <div class="game-title-stack">
+            <strong id="stageGameName">Hra</strong>
+            <span id="stageRoomFacts">Synchronizuji stav…</span>
+          </div>
+          <div class="room-facts" id="stageMeta"></div>
+        </div>
+        <div class="player-bar" id="playerBar" style="display:none"></div>
+        <div class="stage-info" id="stageInfo" style="display:none"></div>
+        <div class="game-status" id="status" style="display:none">Čekáme na hráče…</div>
+        <div class="board-wrap stage-board"><div id="boardArea"></div></div>
+        <div class="game-actions-fixed refresh" id="gameActions" style="display:none">
+          <button class="btn btn-outline btn-sm" data-i18n="restart" onclick="window.doRestart()">Restartovat</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="overlay" id="overlay" style="display:none">
+    <div class="overlay-card">
+      <div class="result" id="resultText"></div>
+      <div class="sub" id="resultSub"></div>
+      <button class="btn btn-accent" data-i18n="play_again" onclick="window.doRestart()">Hrát znovu</button>
+      <button class="btn btn-outline btn-sm" data-i18n="view_board" onclick="window.closeResult()" style="margin-top:10px;" id="resultViewBoard">Zobrazit hru</button>
+      <button class="btn btn-outline btn-sm" data-i18n="return_to_room" onclick="window.doReturnToRoom()" style="margin-top:10px;">Zpět ke stolu</button>
+      <button class="btn btn-outline btn-sm" data-i18n="back_to_lobby" onclick="window.doLeaveRoom()" style="margin-top:10px;">← Zpět do lobby</button>
+    </div>
+  </div>
+
+  <div class="seat-swap-backdrop" id="seatSwapModal" onclick="if(event.target===this)window.closeSeatSwapModal&&window.closeSeatSwapModal()">
+    <div class="seat-swap-card">
+      <div class="seat-swap-head">
+        <strong data-i18n="swap_seat">Vyměnit místo</strong>
+        <span id="seatSwapHint" data-i18n="swap_hint_full">Vyber místo, se kterým si chceš vyměnit.</span>
+      </div>
+      <div class="seat-swap-grid" id="seatSwapGrid"></div>
+      <button class="btn btn-outline btn-sm seat-swap-close" data-i18n="cancel" onclick="window.closeSeatSwapModal&&window.closeSeatSwapModal()">Zrušit</button>
+    </div>
+  </div>
+
+  <script src="/js/lang/en.js"></script>
+  <script src="/js/lang/cs.js"></script>
+  <script src="/js/lang/init.js"></script>
+  <script src="/js/lang/catalog-en.js"></script>
+  <script src="/js/lang/catalog-cs.js"></script>
+  <script src="/js/lang/content-cs.js"></script>
+  <script src="/js/tutorials-cs.js"></script>
+  <script src="/js/tutorials-cs-authored.js"></script>
+  <script src="/js/tutorials.js"></script>
+  <script src="/js/ui/motion.js"></script>
+  <script src="/js/ui/sfx.js"></script>
+  <script src="/js/ui/client-log.js"></script>
+  <script src="/js/ui/cards.js"></script>
+  <script src="/js/style-utils.js"></script>
+  <script src="/js/ui/profile-card.js"></script>
+  <script src="/js/renderers/tictactoe.js"></script>
+  <script src="/js/renderers/gomoku.js"></script>
+  <script src="/js/renderers/doudizhu.js"></script>
+  <script src="/js/renderers/uno.js"></script>
+  <script src="/js/renderers/davinci.js"></script>
+  <script src="/js/renderers/exploding-kittens.js"></script>
+  <script src="/js/renderers/rummikub.js"></script>
+  <script src="/js/renderers/twentyfour.js"></script>
+  <script src="/js/renderers/sudoku.js"></script>
+  <script src="/js/renderers/2048.js"></script>
+  <script src="/js/renderers/minesweeper.js"></script>
+  <script src="/js/renderers/numberbomb.js"></script>
+  <script src="/js/renderers/oldmaid.js"></script>
+  <script src="/js/renderers/liarsbar.js"></script>
+  <script src="/js/renderers/bigtwo.js"></script>
+  <script src="/js/renderers/mahjong.js"></script>
+  <script src="/js/renderers/texas.js"></script>
+  <script src="/js/renderers/flightchess.js"></script>
+  <script src="/js/renderers/snakebattle.js"></script>
+  <script src="/js/renderers/chinesechess.js"></script>
+  <script src="/js/renderers/chess.js"></script>
+  <script src="/js/renderers/checkers.js"></script>
+  <script src="/js/renderers/connect4.js"></script>
+  <script src="/js/renderers/reversi.js"></script>
+  <script src="/js/renderers/hearts.js"></script>
+  <script src="/js/renderers/go9.js"></script>
+  <script src="/js/renderers/monopoly.js"></script>
+  <script src="/js/renderers/suikabattle.js"></script>
+  <script src="/js/renderers/sheeptile.js"></script>
+  <script src="/js/renderers/truthdare.js"></script>
+  <script src="/js/renderers/werewolf.js"></script>
+  <script src="/js/renderers/sanguo.js"></script>
+  <script src="/js/renderers/drawguess.js"></script>
+  <script src="/js/renderers/battleship.js"></script>
+  <!-- Sichuan and Cantonese mahjong share mahjong.js, told apart by isCantonese() -->
+  <script src="/js/game-catalog.js"></script>
+  <script src="/js/room-client.js"></script>
+</body>
+</html>

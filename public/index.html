@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Párty hry</title>
+<link rel="stylesheet" href="/style.css">
+<!-- Fonts are bundled in assets/fonts so the app works offline. -->
+</head>
+<body class="lobby-page">
+  <main class="lobby-shell" style="position:relative">
+    <div class="lang-switch" id="langSwitch" role="group" aria-label="Jazyk">
+      <button type="button" class="lang-btn" data-lang="cs">Čeština</button>
+      <button type="button" class="lang-btn" data-lang="en">English</button>
+    </div>
+
+    <section class="lobby-hero">
+      <div class="hero-copy">
+        <p class="eyebrow" data-i18n="lobby_eyebrow">PÁRTY HRY NA LAN</p>
+        <h1 class="hero-title" data-i18n="hero_title">Párty hry</h1>
+        <p class="hero-subtitle" data-i18n="hero_subtitle">Stejná Wi-Fi? Vyber hru, otevři stůl a hraj za pár sekund.</p>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <strong id="gameCount">34</strong>
+          <span data-i18n="hero_game_count">her v nabídce</span>
+        </div>
+        <div class="hero-stat">
+          <strong id="statOnline">–</strong>
+          <span id="statOnlineLabel" data-i18n="players_online">hráčů online</span>
+        </div>
+        <div class="hero-stat">
+          <strong id="statRooms">–</strong>
+          <span id="statRoomsLabel" data-i18n="rooms_open">otevřených stolů</span>
+        </div>
+      </div>
+
+      <div class="hero-panels">
+        <section class="hero-panel profile-panel">
+          <div class="panel-heading" data-i18n="profile_title">Tvůj profil</div>
+          <div id="lobbyProfileCard"></div>
+        </section>
+
+        <section class="hero-panel">
+          <div class="panel-heading" data-i18n="join_room">Připojit se ke stolu</div>
+          <div class="join-row">
+            <input class="input" id="roomCodeInput" type="text" maxlength="4" placeholder="Kód stolu" data-i18n-placeholder="room_code_placeholder" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+            <button class="btn btn-outline" id="joinBtn" data-i18n="join">Připojit se</button>
+          </div>
+        </section>
+      </div>
+
+      <section class="hero-panel" id="resumeSection" style="display:none">
+        <div class="room-banner">
+          <div class="room-banner-icon">&#8635;</div>
+          <div class="room-banner-body">
+            <div class="room-banner-title" id="resumeRoomName">Stůl</div>
+            <div class="room-banner-meta" id="resumeRoomSub">Jsi u tohoto stolu, klikni pro návrat</div>
+          </div>
+          <button class="btn btn-primary btn-sm room-banner-btn" id="resumeBtn" data-i18n="resume_btn">Zpět ke stolu</button>
+        </div>
+      </section>
+    </section>
+
+    <p class="wifi-note" id="wifiNote" data-i18n="wifi_note">Všechna zařízení musí být na stejné Wi-Fi nebo hotspotu.</p>
+    <div class="mobile-only-banner" id="mobileOnlyBanner" style="display:none">
+      <strong id="mobileOnlyTitle" data-i18n="mobile_data_lobby_title">Offline sólo režim</strong>
+      <span id="mobileOnlySub" data-i18n="mobile_data_lobby_sub">Přes mobilní data se nedá hrát s ostatními, ale s AI ano.</span>
+    </div>
+
+    <section class="lobby-rooms" id="roomsSection">
+      <div class="discovery-header">
+        <div>
+          <p class="eyebrow" data-i18n="open_tables_label">Otevřené stoly</p>
+          <h2 data-i18n="open_tables_title">Připoj se jedním klepnutím</h2>
+        </div>
+        <p class="discovery-hint" data-i18n="open_tables_hint">Stoly, které právě čekají na hráče. Klepni na kartu a hraješ — bez opisování kódu.</p>
+      </div>
+      <div class="room-list" id="roomList"></div>
+      <div class="rooms-empty" id="roomsEmpty">
+        <div class="rooms-empty-text">
+          <span class="rooms-empty-icon" aria-hidden="true">🃏</span>
+          <span class="rooms-empty-copy" data-i18n="open_tables_empty">Zatím nikdo nečeká — vytvoř stůl a ostatní se přidají jedním klepnutím.</span>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" id="roomsCreateBtn" data-i18n="create_room">Vytvořit stůl</button>
+      </div>
+    </section>
+
+    <section class="lobby-discovery">
+      <div class="discovery-header">
+        <div>
+          <p class="eyebrow" data-i18n="featured_label">Doporučujeme</p>
+          <h2 data-i18n="featured_title">Začni tady</h2>
+        </div>
+        <p class="discovery-hint" data-i18n="discovery_hint">Vyber hru a klepni na Vytvořit stůl. Druhé klepnutí na stejnou kartu stůl rovnou otevře.</p>
+      </div>
+      <div class="featured-strip" id="featuredStrip"></div>
+    </section>
+
+    <section class="lobby-browser">
+      <div class="browser-toolbar">
+        <div>
+          <p class="eyebrow" data-i18n="browse_label">Všechny hry</p>
+          <h2 data-i18n="browse_title">Procházej podle žánru</h2>
+        </div>
+        <div class="browser-tools">
+          <input class="browser-search" id="gameSearch" type="search" placeholder="Hledat hru, štítek, žánr" data-i18n-placeholder="search_placeholder">
+          <div class="category-chips" id="categoryChips"></div>
+        </div>
+      </div>
+      <div class="browse-grid" id="gameGrid"></div>
+      <p class="browse-empty" id="emptyState" style="display:none" data-i18n="no_results">Nic jsme nenašli, zkus jiné slovo.</p>
+    </section>
+
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <button id="quickCreate" class="quick-create-btn">Vytvořit stůl</button>
+
+  <div class="profile-drawer-backdrop" id="profileDrawer" style="display:none" onclick="if(event.target===this)window.closeProfileDrawer()">
+    <div class="profile-drawer-sheet">
+      <div class="avatar-drawer-handle"></div>
+      <div class="avatar-drawer-title" data-i18n="profile_title">Tvůj profil</div>
+      <div id="profileDrawerCard"></div>
+      <button class="btn btn-primary btn-sm pc-done" data-i18n="close" onclick="window.closeProfileDrawer()">Zavřít</button>
+    </div>
+  </div>
+
+<script src="/js/lang/en.js"></script>
+<script src="/js/lang/cs.js"></script>
+<script src="/js/lang/init.js"></script>
+<script src="/js/lang/catalog-en.js"></script>
+<script src="/js/lang/catalog-cs.js"></script>
+<script src="/js/ui/sfx.js"></script>
+<script src="/js/ui/client-log.js"></script>
+<script src="/js/ui/profile-card.js"></script>
+<script src="/js/game-catalog.js"></script>
+<script src="/js/tutorials-cs.js"></script>
+<script src="/js/tutorials-cs-authored.js"></script>
+<script src="/js/tutorials.js"></script>
+<script>
+let selectedGame = 'monopoly';
+let searchText = '';
+
+// ?wifi= comes from the Android app; remember it so it survives leaving and returning to the lobby
+const __isMobileData = (function () {
+  var w = new URLSearchParams(location.search).get('wifi');
+  try {
+    if (w === '0' || w === '1') sessionStorage.setItem('wifi', w);
+    else w = sessionStorage.getItem('wifi');
+  } catch (e) {}
+  return w === '0';
+})();
+const __allGames = window.gameCatalog.list();
+const __allFeatured = window.gameCatalog.featured();
+// Offline: show games with bots or a solo mode; werewolf bots can't really talk, so it's hidden.
+const __SOLO_GAMES = new Set(['minesweeper', 'suikabattle']);
+const __OFFLINE_HIDDEN = new Set(['werewolf']);
+function playable(g) {
+  if (!__isMobileData) return true;
+  if (__OFFLINE_HIDDEN.has(g.id)) return false;
+  return g.supportsAI !== false || __SOLO_GAMES.has(g.id);
+}
+const catalog = __allGames.filter(playable);
+const featuredGames = __allFeatured.filter(playable);
+
+// Searching ignores case and Czech diacritics ("ctyri" finds "Čtyři v řadě").
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function escapeHtml(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function getGameInfo(id) {
+  return window.gameCatalog.byId(id) || {
+    id: id,
+    name: id,
+    icon: '?',
+    subtitle: '',
+    description: '',
+    players: '',
+    duration: '',
+    category: '',
+    tags: [],
+    cover: ''
+  };
+}
+
+function getSocketURL() {
+  const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+  return protocol + location.host;
+}
+
+function buildCover(game, compact) {
+  if (game.cover) {
+    return '<img class="' + (compact ? 'featured-cover' : 'browse-cover') + '" src="' + game.cover + '" alt="' + escapeHtml(game.name) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+      '<div class="' + (compact ? 'featured-fallback' : 'browse-fallback') + '" style="display:none">' + escapeHtml(game.icon) + '</div>';
+  }
+  return '<div class="' + (compact ? 'featured-fallback' : 'browse-fallback') + '">' + escapeHtml(game.icon) + '</div>';
+}
+
+function buildFeaturedCard(game) {
+  const selectedClass = game.id === selectedGame ? ' selected' : '';
+  return '<button class="featured-card' + selectedClass + '" data-game="' + game.id + '">' +
+    '<div class="featured-media">' + buildCover(game, true) +
+      '<span class="card-help" role="button" tabindex="0" aria-label="' + escapeHtml(_t('how_to_play')) + '" title="' + escapeHtml(_t('how_to_play')) + '" data-help="' + game.id + '">?</span></div>' +
+    '<div class="featured-content">' +
+      '<div class="featured-topline"><span>' + escapeHtml(game.category) + '</span><span>' + escapeHtml(game.players) + '</span></div>' +
+      '<h3>' + escapeHtml(game.name) + '</h3>' +
+      '<p>' + escapeHtml(game.subtitle) + '</p>' +
+    '</div>' +
+  '</button>';
+}
+
+function buildBrowseCard(game) {
+  const selectedClass = game.id === selectedGame ? ' selected' : '';
+  const ai = '<span>' + _t(game.supportsAI ? 'can_add_bot' : __SOLO_GAMES.has(game.id) ? 'solo_ok' : 'pvp_only') + '</span>';
+  return '<button class="browse-card' + selectedClass + '" data-game="' + game.id + '">' +
+    '<div class="browse-card-media">' + buildCover(game, false) +
+      '<span class="card-help" role="button" tabindex="0" aria-label="' + escapeHtml(_t('how_to_play')) + '" title="' + escapeHtml(_t('how_to_play')) + '" data-help="' + game.id + '">?</span></div>' +
+    '<div class="browse-card-body">' +
+      '<div class="browse-card-meta"><span>' + escapeHtml(game.category) + '</span><span>' + escapeHtml(game.duration) + '</span></div>' +
+      '<h3>' + escapeHtml(game.name) + '</h3>' +
+      '<p>' + escapeHtml(game.description) + '</p>' +
+      '<div class="browse-card-footer"><span>' + escapeHtml(game.players) + '</span>' + ai + '</div>' +
+    '</div>' +
+  '</button>';
+}
+
+// The floating button names the game it will open, so a tap is never a surprise
+function updateQuickCreate() {
+  const label = _t('create_room');
+  const game = getGameInfo(selectedGame);
+  document.getElementById('quickCreate').innerHTML = '<span class="qc-label">' + escapeHtml(label) + '</span>' +
+    (game && game.name ? '<span class="qc-game">' + escapeHtml(game.name) + '</span>' : '');
+}
+
+function activeCategoryLabel() {
+  return _t('all_categories');
+}
+
+function matches(game) {
+  const allLabel = activeCategoryLabel();
+  // Categories are compared as rendered, so the filter follows the active language.
+  const currentCategory = window.__activeCategory || allLabel;
+  if (currentCategory !== allLabel && game.category !== currentCategory) return false;
+  if (!searchText) return true;
+  const haystack = normalizeText([
+    game.id,
+    game.name,
+    game.subtitle,
+    game.description,
+    game.category,
+    (game.tags || []).join(' ')
+  ].join(' '));
+  return haystack.indexOf(searchText) >= 0;
+}
+
+function bindSelection(containerSelector) {
+  document.querySelectorAll(containerSelector).forEach(function(card) {
+    card.addEventListener('click', function() {
+      const wasSelected = this.classList.contains('selected');
+      selectedGame = this.dataset.game;
+      renderCatalog();
+      updateQuickCreate();
+      if (wasSelected) createRoom();
+    });
+  });
+}
+
+function renderCategories() {
+  const active = window.__activeCategory || activeCategoryLabel();
+  const chips = [activeCategoryLabel()].concat(window.gameCatalog.categories());
+  const root = document.getElementById('categoryChips');
+  root.innerHTML = chips.map(function(category) {
+    const selectedClass = category === active ? ' selected' : '';
+    return '<button class="category-chip' + selectedClass + '" data-category="' + escapeHtml(category) + '">' + escapeHtml(category) + '</button>';
+  }).join('');
+  root.querySelectorAll('.category-chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      window.__activeCategory = this.dataset.category;
+      renderCatalog();
+    });
+  });
+}
+
+function renderCatalog() {
+  const countEl = document.getElementById('gameCount');
+  if (countEl) countEl.textContent = catalog.length;
+  document.getElementById('featuredStrip').innerHTML = featuredGames.map(buildFeaturedCard).join('');
+  const filtered = catalog.filter(matches);
+  document.getElementById('gameGrid').innerHTML = filtered.map(buildBrowseCard).join('');
+  document.getElementById('emptyState').style.display = filtered.length ? 'none' : '';
+  bindSelection('.featured-card');
+  bindSelection('.browse-card');
+  renderCategories();
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+function createRoom() {
+  // Allowed on mobile data too: the room lives on this device's own server, so solo/AI play works.
+  const ws = new WebSocket(getSocketURL());
+  ws.onopen = function() {
+    ws.send(JSON.stringify({ type: 'create_room', data: { game: selectedGame, lang: window.__ACTIVE_LANG } }));
+  };
+  ws.onmessage = function(e) {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'room_created') {
+      sessionStorage.setItem('roomId', msg.roomId);
+      sessionStorage.setItem('playerIndex', msg.playerIndex);
+      sessionStorage.setItem('game', msg.game);
+      if (msg.resumeToken) sessionStorage.setItem('resumeToken', msg.resumeToken);
+      ws.close();
+      location.replace('/game.html');
+    } else if (msg.type === 'error') {
+      toast(_t('error_prefix') + msg.message);
+    }
+  };
+  ws.onerror = function() {
+    toast(_t('connection_failed'));
+  };
+}
+
+document.getElementById('quickCreate').addEventListener('click', function() {
+  createRoom();
+});
+
+document.getElementById('roomsCreateBtn').addEventListener('click', function() {
+  createRoom();
+});
+
+// "?" on a game card opens its rules without selecting/creating the table.
+// Capture phase is required because the card itself is a <button>.
+document.addEventListener('click', function(e) {
+  var help = e.target.closest && e.target.closest('.card-help');
+  if (!help) return;
+  e.preventDefault();
+  e.stopPropagation();
+  var id = help.getAttribute('data-help');
+  if (id && typeof window.showGameTutorial === 'function') window.showGameTutorial(id);
+}, true);
+
+document.addEventListener('keydown', function(e) {
+  if ((e.key !== 'Enter' && e.key !== ' ') || !e.target.classList || !e.target.classList.contains('card-help')) return;
+  e.preventDefault();
+  e.stopPropagation();
+  var id = e.target.getAttribute('data-help');
+  if (id && typeof window.showGameTutorial === 'function') window.showGameTutorial(id);
+}, true);
+
+// Shared join path: used by the code input, invite links and the open-table list.
+function joinRoomById(rawCode) {
+  const code = String(rawCode || '').trim().toUpperCase();
+  if (!code) {
+    toast(_t('room_code_empty'));
+    return;
+  }
+  const ws = new WebSocket(getSocketURL());
+  ws.onopen = function() {
+    ws.send(JSON.stringify({ type: 'join_room', data: { roomId: code, lang: window.__ACTIVE_LANG } }));
+  };
+  ws.onmessage = function(e) {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'room_joined') {
+      sessionStorage.setItem('roomId', msg.roomId);
+      sessionStorage.setItem('playerIndex', msg.playerIndex);
+      sessionStorage.setItem('game', msg.game);
+      if (msg.resumeToken) sessionStorage.setItem('resumeToken', msg.resumeToken);
+      ws.close();
+      location.replace('/game.html');
+    } else if (msg.type === 'error') {
+      toast(_t('error_prefix') + msg.message);
+      // Only drop the saved seat when the room we tried is the one we had.
+      if (msg.code === 'ROOM_NOT_FOUND') {
+        let saved = null;
+        try { saved = sessionStorage.getItem('roomId'); } catch (err) {}
+        if (!saved || saved === code) clearRoomSession();
+        refreshRooms();
+      }
+    }
+  };
+  ws.onerror = function() {
+    toast(_t('connection_failed'));
+  };
+}
+
+document.getElementById('joinBtn').addEventListener('click', function() {
+  joinRoomById(document.getElementById('roomCodeInput').value);
+});
+
+// ---- Open tables: ready-made rooms anyone can hop into ----
+const ROOM_POLL_MS = 4000;
+let roomsSignature = '';
+
+function roomCardMarkup(room) {
+  const game = getGameInfo(room.game);
+  const host = room.host || { name: '', avatar: game.icon || '🎲' };
+  const mine = !!room.mine;
+  const bots = room.bots ? ' · ' + _tf('open_tables_bots', room.bots) : '';
+  const cover = game.cover
+    ? '<img class="room-card-cover" src="' + game.cover + '" alt="" loading="lazy" onerror="this.remove()">'
+    : '';
+  return '<button type="button" class="room-card' + (mine ? ' room-card-mine' : '') + '" data-room="' + escapeHtml(room.id) + '"' + (mine ? ' data-mine="1"' : '') + '>' +
+      '<span class="room-card-media"><span class="room-card-icon">' + escapeHtml(game.icon || '🎲') + '</span>' + cover + '</span>' +
+      '<span class="room-card-body">' +
+        '<span class="room-card-title">' + escapeHtml(game.name) + '</span>' +
+        '<span class="room-card-host"><span class="room-card-avatar">' + escapeHtml(host.avatar || '😊') + '</span>' + escapeHtml(host.name || '') + '</span>' +
+        '<span class="room-card-meta">' + escapeHtml(_tf('open_tables_players', room.humans + room.bots, room.maxPlayers)) + bots + '</span>' +
+      '</span>' +
+      '<span class="room-card-cta">' + escapeHtml(mine ? _t('open_tables_mine') : _t('open_tables_join')) + '</span>' +
+    '</button>';
+}
+
+function renderRooms(list) {
+  const wrap = document.getElementById('roomList');
+  const empty = document.getElementById('roomsEmpty');
+  if (!wrap) return;
+  const signature = list.map(function(r) {
+    return [r.id, r.humans, r.bots, r.ready, r.mine, r.host && r.host.name].join(':');
+  }).join('|');
+  if (signature === roomsSignature) return;
+  roomsSignature = signature;
+  if (!list.length) {
+    wrap.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  wrap.innerHTML = list.map(roomCardMarkup).join('');
+  wrap.querySelectorAll('.room-card').forEach(function(card) {
+    card.addEventListener('click', function() {
+      const id = this.getAttribute('data-room');
+      if (this.getAttribute('data-mine') === '1') {
+        location.href = '/game.html';
+        return;
+      }
+      joinRoomById(id);
+    });
+  });
+}
+
+function refreshRooms() {
+  return fetch('/api/rooms', { cache: 'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) { renderRooms(data.rooms || []); })
+    .catch(function() { /* server offline: keep the last list */ });
+}
+
+document.getElementById('roomCodeInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') document.getElementById('joinBtn').click();
+});
+
+document.getElementById('gameSearch').addEventListener('input', function() {
+  searchText = normalizeText(this.value.trim());
+  renderCatalog();
+});
+
+function clearRoomSession() {
+  ['roomId', 'playerIndex', 'game', 'resumeToken'].forEach(function(key) {
+    try { sessionStorage.removeItem(key); } catch (e) {}
+  });
+}
+
+function renderResumeBanner() {
+  let roomId = null;
+  let token = null;
+  try {
+    roomId = sessionStorage.getItem('roomId');
+    token = sessionStorage.getItem('resumeToken');
+  } catch (e) {}
+  if (!roomId || !token) return;
+  const game = getGameInfo(sessionStorage.getItem('game'));
+  const title = document.getElementById('resumeRoomName');
+  const sub = document.getElementById('resumeRoomSub');
+  const section = document.getElementById('resumeSection');
+  const btn = document.getElementById('resumeBtn');
+  if (title) title.textContent = '《' + game.name + '》 · ' + _t('room') + ' ' + roomId;
+  if (sub) sub.textContent = _t('resume_subtitle');
+  if (section) section.style.display = '';
+  if (btn) btn.onclick = function() { location.href = '/game.html'; };
+}
+
+// ---- Profile (one per IP address, served by the server) ----
+let profile = null;
+const profileCardEl = document.getElementById('lobbyProfileCard');
+const profileDrawer = document.getElementById('profileDrawer');
+
+function renderProfileCard(target, options) {
+  if (!target || !window.ProfileCard) return;
+  window.ProfileCard.render(target, profile, options || { onChange: saveProfile });
+}
+
+// The hero shows a summary only; clicking it opens the full editor in the drawer.
+function renderLobbyProfileCard() {
+  renderProfileCard(profileCardEl, {
+    compact: true,
+    onChange: saveProfile,
+    onEdit: window.openProfileDrawer
+  });
+}
+
+function saveProfile(patch) {
+  if (profile) {
+    if (patch.name !== undefined) profile.name = patch.name;
+    if (patch.avatar !== undefined) profile.avatar = patch.avatar;
+    if (patch.color !== undefined) profile.color = patch.color;
+    if (patch.prefs) profile.prefs = Object.assign({}, profile.prefs, patch.prefs);
+  }
+  applyPrefs(profile);
+  fetch('/api/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch)
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data && data.profile) {
+      profile = data.profile;
+      window._profile = profile;
+      window._sfx && (window._sfx.enabled = profile.prefs.sound !== false);
+      renderLobbyProfileCard();
+    }
+  }).catch(function() { /* offline: keep the local copy */ });
+}
+
+function applyPrefs(next) {
+  if (!next || !next.prefs || !window._sfx) return;
+  window._sfx.enabled = next.prefs.sound !== false;
+}
+
+function loadProfile() {
+  return fetch('/api/profile', { cache: 'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      profile = data.profile || null;
+      window._profile = profile;
+      renderLobbyProfileCard();
+      applyPrefs(profile);
+      // A profile language preference only applies when this device has not chosen one.
+      let stored = null;
+      try { stored = localStorage.getItem('lang'); } catch (e) {}
+      if (profile && profile.prefs && profile.prefs.lang && !stored && profile.prefs.lang !== window.__ACTIVE_LANG) {
+        window._setLang(profile.prefs.lang);
+        location.reload();
+        return;
+      }
+      if (data.fresh) toast(_t('profile_new'));
+    })
+    .catch(function() {
+      if (profileCardEl) profileCardEl.innerHTML = '';
+    });
+}
+
+window.openProfileDrawer = function() {
+  if (!profile) return;
+  renderProfileCard(document.getElementById('profileDrawerCard'), { onChange: saveProfile });
+  profileDrawer.style.display = 'flex';
+};
+window.closeProfileDrawer = function() {
+  profileDrawer.style.display = 'none';
+};
+
+// ---- Server activity (players online / open tables) ----
+function refreshStats() {
+  fetch('/api/stats', { cache: 'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(stats) {
+      const online = document.getElementById('statOnline');
+      const rooms = document.getElementById('statRooms');
+      if (online) online.textContent = stats.online === undefined ? '–' : stats.online;
+      if (rooms) rooms.textContent = stats.rooms === undefined ? '–' : stats.rooms;
+      const onlineLabel = document.getElementById('statOnlineLabel');
+      const roomsLabel = document.getElementById('statRoomsLabel');
+      if (onlineLabel && stats.online !== undefined) onlineLabel.textContent = _tn(stats.online, 'players_online');
+      if (roomsLabel && stats.rooms !== undefined) roomsLabel.textContent = _tn(stats.rooms, 'rooms_open');
+    })
+    .catch(function() { /* server busy: keep the last numbers */ });
+}
+
+// ---- Language switch ----
+(function initLangSwitch() {
+  const root = document.getElementById('langSwitch');
+  if (!root) return;
+  root.querySelectorAll('[data-lang]').forEach(function(btn) {
+    const lang = btn.getAttribute('data-lang');
+    btn.classList.toggle('active', lang === window.__ACTIVE_LANG);
+    btn.addEventListener('click', function() {
+      if (lang === window.__ACTIVE_LANG) return;
+      // Remember the choice on the profile too, so other devices on this IP agree.
+      if (profile) {
+        profile.prefs = Object.assign({}, profile.prefs, { lang: lang });
+        saveProfile({ prefs: profile.prefs });
+      }
+      if (window._sfx) window._sfx.play('click');
+      window._switchLang(lang);
+    });
+  });
+})();
+
+(function bootstrap() {
+  const params = new URLSearchParams(location.search);
+  // Mobile-data mode: hide multiplayer UI, show offline banner
+  // (?wifi=0 is set by the Android MainActivity when the active network is not WiFi/Ethernet)
+  if (__isMobileData) {
+    var joinPanel = document.querySelector('.hero-panels .hero-panel:nth-of-type(2)');
+    if (joinPanel) joinPanel.style.display = 'none';
+    var qc = document.getElementById('quickCreate');
+    if (qc) qc.style.display = 'none';
+    var wn = document.getElementById('wifiNote');
+    if (wn) wn.style.display = 'none';
+    var banner = document.getElementById('mobileOnlyBanner');
+    if (banner) banner.style.display = '';
+  }
+  if (sessionStorage.getItem('roomId') && sessionStorage.getItem('resumeToken')) {
+    renderResumeBanner();
+    var roomId = sessionStorage.getItem('roomId');
+    // Verify the room still exists with the server
+    fetch('/api/room-exists/' + encodeURIComponent(roomId)).then(function(r) { return r.json(); }).then(function(data) {
+      if (!data.exists) {
+        clearRoomSession();
+        document.getElementById('resumeSection').style.display = 'none';
+      }
+    }).catch(function() { /* offline; keep banner so the user can retry */ });
+  }
+  if (params.get('roomExpired') === '1') {
+    toast(_t('room_expired'));
+    clearRoomSession();
+    history.replaceState(null, '', location.pathname);
+  }
+  if (params.get('kicked') === '1') {
+    toast(_t('kicked_by_host'));
+    clearRoomSession();
+    history.replaceState(null, '', location.pathname);
+  }
+  const roomCode = params.get('room');
+  if (roomCode && !__isMobileData) {
+    document.getElementById('roomCodeInput').value = roomCode.trim().toUpperCase();
+    joinRoomById(roomCode);
+  } else if (roomCode && __isMobileData) {
+    toast(_t('mobile_data_only_msg'));
+    history.replaceState(null, '', location.pathname);
+  }
+})();
+
+// i18n: static markup + the strings rendered by JS.
+// The order matters: apply the translations first, then render the JS-built
+// pieces (catalog, quick-create button, resume banner) so nothing overwrites them.
+window._applyI18n();
+renderCatalog();
+updateQuickCreate();
+renderResumeBanner();
+loadProfile();
+refreshStats();
+setInterval(refreshStats, 20000);
+if (!__isMobileData) {
+  refreshRooms();
+  setInterval(refreshRooms, ROOM_POLL_MS);
+}
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) return;
+  refreshStats();
+  if (!__isMobileData) refreshRooms();
+});
+
+// Title tag
+document.title = _t('hero_title');
+
+// Entrance animation when returning from a game
+if (sessionStorage.getItem('_returnFromGame')) {
+  sessionStorage.removeItem('_returnFromGame');
+  var page = document.querySelector('.lobby-page');
+  if (page) page.classList.add('entrance-anim');
+}
+</script>
+</body>
+</html>

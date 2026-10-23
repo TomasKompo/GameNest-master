@@ -1,0 +1,121 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.gamenest.app'
+    compileSdk 36
+    ndkVersion "24.0.8215888"
+
+    defaultConfig {
+        applicationId "com.gamenest.app"
+        minSdk 26
+        targetSdk 36
+        versionCode 6
+        versionName "2.0.0"
+
+        ndk {
+            // 排除 x86_64（仅模拟器用）。每个 ABI 都含一份 47MB 的 libnode.so，
+            // 所以下面用 splits 按 ABI 拆包，而不是打成一个胖包。
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags '-std=c++17'
+                arguments '-DANDROID_STL=c++_shared'
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+            version '4.1.2'
+        }
+    }
+
+    // 按 ABI 拆包发 GitHub Release：libnode.so 单份 47MB，打成一个胖包会让
+    // 每个用户都白下一份用不上的架构。universalApk 额外产出一个全 ABI 包，
+    // 给不确定自己机型的人兜底。
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a'
+            universalApk true
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+
+    // Don't compress the Node.js project assets - they need to be extracted at runtime
+    androidResources {
+        noCompress += ['js', 'json', 'node']
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            // Allow our libnode.so to coexist
+            pickFirsts += ['**/libnode.so', '**/libc++_shared.so']
+        }
+    }
+
+    sourceSets {
+        main {
+            // nodejs-mobile prebuilt libs live here
+            jniLibs.srcDirs = ['libs/jniLibs']
+        }
+    }
+}
+
+// 每个 ABI 分包给一个独立 versionCode，否则三个包同号，
+// 先装 universal 再装某个 split（或反过来）会被当成同版本重装。
+// universal 不加偏移，保持 defaultConfig 的 versionCode，始终最低。
+androidComponents {
+    def abiOffset = ['armeabi-v7a': 1, 'arm64-v8a': 2]
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            def abiFilter = output.filters.find {
+                it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI
+            }
+            def offset = abiFilter ? (abiOffset[abiFilter.identifier] ?: 0) : 0
+            if (offset) {
+                output.versionCode.set(output.versionCode.get() * 10 + offset)
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+}
