@@ -2,8 +2,6 @@
 
 > 34 LAN games you can play with friends without internet: board, card, mahjong, party, puzzle, and real-time. One phone or PC hosts (a hotspot is enough), everyone else scans a QR code and plays in the browser. No data plan, no app install.
 
-**[🚀 Live Demo](https://gamenest-4kww.onrender.com) — try it without installing.**
-
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/absswds/GameNest/actions/workflows/ci.yml/badge.svg)](https://github.com/absswds/GameNest/actions/workflows/ci.yml)
 [![Android APK](https://github.com/absswds/GameNest/actions/workflows/android-apk.yml/badge.svg)](https://github.com/absswds/GameNest/actions/workflows/android-apk.yml)
